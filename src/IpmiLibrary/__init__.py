@@ -207,6 +207,43 @@ class IpmiLibrary(Sdr, Sel, Fru, Bmc, Picmg, Hpm, Chassis, Lan):
 
         return self._cache.register(connection, alias)
 
+    def open_ipmi_cbridge_connection(self, port_or_serial, target_address,
+                                      slave_address=0x20, routing_information=None, alias=None,
+                                      enable_i2c_pullups=True):
+        """Opens an Aardvark connection to the IPMB.
+        `target_address` is the IPMB address to which the command should be
+        sent. With the `serial_number` the aardvark device can be specified. If
+        `None` is set the first is selected.
+        """
+        target_address = int_any_base(target_address)
+        slave_address = int_any_base(slave_address)
+
+        if isinstance(port_or_serial, str) and '-' in port_or_serial:
+            serial = port_or_serial
+            port = None
+            self._info('Opening CBridge adapter with serial')
+        else:
+            port = int(port_or_serial)
+            serial = None
+            self._info('Opening CBridge adapter on port %d' % (port,))
+        #dll = r'/mt/c/projects/Hartmann/git/shmm700/src_wiener/build/Debug/MyProject.dll'
+        dll = "/mnt/c/projects/Hartmann/git/shmm700/src_wiener/IPMI/build/libMyProject.so"
+        interface = pyipmi.interfaces.create_interface('cbridge',
+                                                       slave_address=0x40,
+                                                       dll=dll)
+        ipmi = pyipmi.create_connection(interface)
+
+        target = pyipmi.Target(target_address, routing_information)
+        ipmi.target = target
+
+        self._info('Opening IPMI aardvark connection to %02Xh' % target_address)
+
+        connection = IpmiConnection(ipmi, target)
+
+        self._active_connection = connection
+
+        return self._cache.register(connection, alias)
+
     def switch_ipmi_connection(self, index_or_alias):
         """Switches between active connections using an index or alias.
 
